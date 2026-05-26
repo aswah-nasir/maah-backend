@@ -352,27 +352,25 @@ app.use(express.json());
 
 app.post('/api/chat', async (req, res) => {
   const { message, language, cyclePhase } = req.body;
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
 
-  const systemPrompt = language === 'ur'
-    ? `آپ ماہ ہیلتھ ایپ کی AI معاون ہیں۔ خواتین کی صحت کے بارے میں مددگار معلومات دیں۔ اردو میں 150 الفاظ سے کم میں جواب دیں۔`
-    : `You are the AI health assistant for Maah, a women's health app for South Asian women. Give helpful, warm, medically accurate advice about periods, PCOS, and women's wellness. Current cycle phase: ${cyclePhase}. Keep responses under 150 words. Always suggest seeing a doctor for serious symptoms.`;
+  const prompt = language === 'ur'
+    ? `آپ ماہ ہیلتھ ایپ کی AI معاون ہیں۔ خواتین کی صحت کے بارے میں مددگار معلومات دیں۔ اردو میں 150 الفاظ سے کم میں جواب دیں۔ سوال: ${message}`
+    : `You are a women's health assistant for Maah, a Pakistani women's health app. Answer helpfully about periods, PCOS, and women's health in under 150 words. Question: ${message}`;
 
   const body = JSON.stringify({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 300,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: message }]
+    model: 'mistralai/mistral-7b-instruct:free',
+    messages: [{ role: 'user', content: prompt }]
   });
 
   const options = {
-    hostname: 'api.anthropic.com',
-    path: '/v1/messages',
+    hostname: 'openrouter.ai',
+    path: '/api/v1/chat/completions',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': 'https://maah-backend.onrender.com',
       'Content-Length': Buffer.byteLength(body)
     }
   };
@@ -384,7 +382,7 @@ app.post('/api/chat', async (req, res) => {
       console.log('Response:', data.substring(0, 300));
       try {
         const parsed = JSON.parse(data);
-        const reply = parsed.content?.[0]?.text;
+        const reply = parsed.choices?.[0]?.message?.content;
         if (reply) {
           res.json({ reply });
         } else {
